@@ -1,7 +1,7 @@
 {
     "name": "llama3_function_calling",
-    "tokenizer_file": "/home/michael/models/Llama3/Llama-3-8B-Instruct/tokenizer.model",
-    "model_ckpt_file": "/home/michael/models/Llama3/Llama-3-8B-Instruct/consolidated.pth",
+    "tokenizer_file": "/file_system/wyz/data/Llama-3.1-8B-Instruct/original/tokenizer.model",
+    "model_ckpt_file": "/file_system/wyz/data/Llama-3.1-8B-Instruct",
     "seed": 3,
     "model_config": {
         "dim": 4096,

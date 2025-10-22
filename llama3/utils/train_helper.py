@@ -34,7 +34,24 @@ def load_model_checkpoint(model: Transformer, ckpt_file: str) -> None:
 
 
 def create_lora_model_and_load_checkpoint(model_config: dict, lora_config: dict, ckpt_file: str) -> Transformer:
-    assert os.path.exists(ckpt_file), 'Invalid checkpoint file'
+    # 处理传入的参数是路径的情况
+    if os.path.isdir(ckpt_file):
+        # 如果是目录，查找其中的 safetensor 文件
+        safetensor_files = [f for f in os.listdir(ckpt_file) if f.endswith('.safetensors')]
+        if safetensor_files:
+            # 使用找到的第一个 safetensor 文件
+            ckpt_file = os.path.join(ckpt_file, safetensor_files[0])
+            logger.info(f'Found safetensor file in directory: {ckpt_file}')
+        else:
+            # 如果没有找到 safetensor 文件，查找 .pt 或 .pth 文件
+            checkpoint_files = [f for f in os.listdir(ckpt_file) if f.endswith(('.pt', '.pth'))]
+            if checkpoint_files:
+                ckpt_file = os.path.join(ckpt_file, checkpoint_files[0])
+                logger.info(f'Found checkpoint file in directory: {ckpt_file}')
+            else:
+                raise FileNotFoundError(f'No checkpoint or safetensor files found in directory: {ckpt_file}')
+    
+    assert os.path.exists(ckpt_file), f'Invalid checkpoint file {ckpt_file}'
 
     logger.info('Creating model ...')
     model_args: ModelArgs = ModelArgs(**model_config)
@@ -45,7 +62,22 @@ def create_lora_model_and_load_checkpoint(model_config: dict, lora_config: dict,
     replace_with_lora_layers(model=model, **lora_config)
 
     logger.info('Loading model checkpoint ...')
-    load_model_checkpoint(model, ckpt_file)
+    if ckpt_file.endswith('.safetensors'):
+        from safetensors.torch import load_file
+        state_dict = load_file(ckpt_file)
+        
+        # 处理键名不匹配的问题：去掉 'model.' 前缀
+        new_state_dict = {}
+        for key, value in state_dict.items():
+            if key.startswith('model.'):
+                new_key = key[6:]  # 去掉 'model.' 前缀
+                new_state_dict[new_key] = value
+            else:
+                new_state_dict[key] = value
+        
+        model.load_state_dict(new_state_dict, strict=False)
+    else:
+        load_model_checkpoint(model, ckpt_file)
 
     mark_only_lora_as_trainable(model, lora_config['train_bias'])
 
